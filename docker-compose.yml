@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     environment:
       - DEBUG=True
-      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      - ALLOWED_HOSTS=*
     volumes:
       - backend_static:/app/staticfiles
     networks:
