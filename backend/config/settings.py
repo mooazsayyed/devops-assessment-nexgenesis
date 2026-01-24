@@ -119,4 +119,11 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # vite dev server
+    "http://127.0.0.1:5173",
+]
+
+# For development only - remove in production
+CORS_ALLOW_ALL_ORIGINS = False
