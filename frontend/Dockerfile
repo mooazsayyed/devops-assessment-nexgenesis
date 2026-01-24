@@ -1,5 +1,16 @@
-# Simple React/Vite Frontend Dockerfile
-FROM node:20-slim
+# Multi-stage React/Vite Frontend Dockerfile
+
+# Stage 1: Dependencies
+FROM node:20-slim as dependencies
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Stage 2: Runtime
+FROM node:20-slim as runtime
 
 WORKDIR /app
 
@@ -9,12 +20,11 @@ RUN apt-get update \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package files and install dependencies
-COPY package*.json ./
-RUN npm ci
-
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser
+
+# Copy dependencies from previous stage
+COPY --from=dependencies /app/node_modules ./node_modules
 
 # Copy source code
 COPY . .
