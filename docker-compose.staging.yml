@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  devops-backend-staging:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devops-backend-staging
+    ports:
+      - "8002:8000"
+    environment:
+      - DEBUG=False
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - CORS_ALLOWED_ORIGINS=http://localhost:5175,http://127.0.0.1:5175
+      - ENVIRONMENT=staging
+      - SECRET_KEY=django-staging-secret-key-67890
+    volumes:
+      - devops_backend_static_staging:/app/staticfiles
+    networks:
+      - devops-staging-network
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: unless-stopped
+
+  devops-frontend-staging:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devops-frontend-staging
+    ports:
+      - "5175:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8002
+    depends_on:
+      - devops-backend-staging
+    networks:
+      - devops-staging-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  devops_backend_static_staging:
+    name: devops_backend_static_staging
+
+networks:
+  devops-staging-network:
+    name: devops-staging-network
+    driver: bridge

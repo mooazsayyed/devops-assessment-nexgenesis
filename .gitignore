@@ -8,7 +8,7 @@ venv/
 env/
 db.sqlite3
 .env
-
+.env*
 # Node / React
 node_modules/
 dist/
@@ -26,3 +26,10 @@ dist-ssr/
 # OS
 .DS_Store
 Thumbs.db
+
+*envs/
+/envs/*
+/envs/development/backend.env
+/envs/staging/backend.env
+/envs/preprod/backend.env
+

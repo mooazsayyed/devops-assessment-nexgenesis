@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  devops-backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devops-backend-dev
+    ports:
+      - "8001:8000"
+    environment:
+      - DEBUG=True
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - CORS_ALLOWED_ORIGINS=http://localhost:5174,http://127.0.0.1:5174
+      - ENVIRONMENT=development
+      - SECRET_KEY=django-dev-secret-key-12345
+    volumes:
+      - devops_backend_static_dev:/app/staticfiles
+    networks:
+      - devops-dev-network
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: unless-stopped
+
+  devops-frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devops-frontend-dev
+    ports:
+      - "5174:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8001
+    depends_on:
+      - devops-backend-dev
+    networks:
+      - devops-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  devops_backend_static_dev:
+    name: devops_backend_static_dev
+
+networks:
+  devops-dev-network:
+    name: devops-dev-network
+    driver: bridge
