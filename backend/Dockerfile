@@ -43,6 +43,9 @@ COPY --from=dependencies /usr/local/bin /usr/local/bin
 # Copy project files
 COPY . .
 
+# Create staticfiles directory with proper permissions
+RUN mkdir -p /app/staticfiles && chown -R appuser:appuser /app/staticfiles
+
 # Change ownership to appuser
 RUN chown -R appuser:appuser /app
 
@@ -58,6 +61,8 @@ RUN echo '#!/bin/bash\n\
 # Make startup script executable
 USER root
 RUN chmod +x /app/start.sh
+RUN chown appuser:appuser /app/start.sh
+USER appuser
 USER appuser
 
 # Expose port
