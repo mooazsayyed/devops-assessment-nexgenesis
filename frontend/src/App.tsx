@@ -8,15 +8,18 @@ function App() {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Get API URL from environment variable, fallback to localhost
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
   const fetchData = async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await axios.get('http://localhost:8000/api/hello/')
+      const response = await axios.get(`${API_URL}/api/hello/`)
       setMessage(response.data.message)
     } catch (err) {
       console.error(err)
-      setError('Failed to connect to the backend. Please ensure the Django server is running.')
+      setError(`Failed to connect to the backend at ${API_URL}. Please ensure the Django server is running.`)
     } finally {
       setLoading(false)
     }
@@ -70,6 +73,7 @@ function App() {
 
       <footer className="footer">
         <p>Built with Django & React (Vite)</p>
+        <p className="api-info">API: {API_URL}</p>
       </footer>
     </div>
   )

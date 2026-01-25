@@ -186,3 +186,10 @@ h1 {
     background-position: 200% 0;
   }
 }
+
+.api-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+  font-family: 'Courier New', monospace;
+}
