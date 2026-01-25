@@ -12,8 +12,8 @@ services:
     environment:
       - DEBUG=False
       - ALLOWED_HOSTS=preprod.api.nextgensis.mooazsayyed.live,localhost,127.0.0.1,54.87.192.112
-      - CORS_ALLOWED_ORIGINS=https://pre-prod.nextgensis.mooazsayyed.live,http://54.87.192.112
-      - ENVIRONMENT=preprod
+      - CORS_ALLOWED_ORIGINS=https://preprod.nextgensis.mooazsayyed.live,http://54.87.192.112
+      - ENVIRONMENT=pre-production
       - SECRET_KEY=django-preprod-secret-key-abcde
     volumes:
       - devops_backend_static_preprod:/app/staticfiles
