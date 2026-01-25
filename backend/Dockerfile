@@ -1,53 +1,49 @@
 # Multi-stage Django Backend Dockerfile
 
-# Stage 1: Dependencies
-FROM python:3.13-slim as dependencies
+# Stage 1: Builder
+FROM python:3.13-alpine as builder
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    postgresql-dev \
+    python3-dev
 
 # Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+RUN pip install --no-cache-dir --user --upgrade pip \
+    && pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
-FROM python:3.13-slim as runtime
+FROM python:3.13-alpine as runtime
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PATH=/home/appuser/.local/bin:$PATH
 
 WORKDIR /app
 
 # Install runtime dependencies only
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    libpq-dev \
+RUN apk add --no-cache \
+    libpq \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    bash
 
 # Create non-root user
-RUN adduser --disabled-password --gecos '' appuser
+RUN adduser -D -h /home/appuser appuser
 
-# Copy installed packages from dependencies stage
-COPY --from=dependencies /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=dependencies /usr/local/bin /usr/local/bin
+# Copy installed packages from builder stage
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # Copy project files
-COPY . .
+COPY --chown=appuser:appuser . .
 
 # Create staticfiles directory with proper permissions
 RUN mkdir -p /app/staticfiles && chown -R appuser:appuser /app/staticfiles
-
-# Change ownership to appuser
-RUN chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
@@ -56,14 +52,8 @@ USER appuser
 RUN echo '#!/bin/bash\n\
     python manage.py migrate\n\
     python manage.py collectstatic --noinput\n\
-    python manage.py runserver 0.0.0.0:8000' > /app/start.sh
-
-# Make startup script executable
-USER root
-RUN chmod +x /app/start.sh
-RUN chown appuser:appuser /app/start.sh
-USER appuser
-USER appuser
+    python manage.py runserver 0.0.0.0:8000' > /app/start.sh && \
+    chmod +x /app/start.sh
 
 # Expose port
 EXPOSE 8000

@@ -1,36 +1,30 @@
 # Multi-stage React/Vite Frontend Dockerfile
 
-# Stage 1: Dependencies
-FROM node:20-slim as dependencies
+# Stage 1: Builder
+FROM node:20-alpine as builder
 
 WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --only=production && npm cache clean --force
 
 # Stage 2: Runtime
-FROM node:20-slim as runtime
+FROM node:20-alpine as runtime
 
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
 # Create non-root user
-RUN adduser --disabled-password --gecos '' appuser
+RUN adduser -D -h /home/appuser appuser
 
-# Copy dependencies from previous stage
-COPY --from=dependencies /app/node_modules ./node_modules
+# Copy dependencies from builder stage
+COPY --from=builder --chown=appuser:appuser /app/node_modules ./node_modules
 
 # Copy source code
-COPY . .
-
-# Change ownership to appuser
-RUN chown -R appuser:appuser /app
+COPY --chown=appuser:appuser . .
 
 # Switch to non-root user
 USER appuser
