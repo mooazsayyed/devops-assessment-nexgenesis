@@ -40,3 +40,4 @@ Thumbs.db
 terraform.tfstate.d/
 Terraform/terraform-ssh-key.pem
 
+.terraform.lock.hcl
