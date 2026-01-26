@@ -1,5 +1,44 @@
 # DevOps Assessment - Full-Stack Deployment Documentation
 
+## Local Setup Guide
+
+### Prerequisites Installation
+1. **Install Docker Desktop**: Download from [docker.com](https://www.docker.com/products/docker-desktop/)
+2. **Install Git**: Download from [git-scm.com](https://git-scm.com/downloads)
+3. **Install Node.js 20+**: Download from [nodejs.org](https://nodejs.org/) (Optional for local development)
+4. **Install Python 3.13+**: Download from [python.org](https://www.python.org/downloads/) (Optional for local development)
+
+### Quick Start (Docker Only)
+```bash
+# Clone the repository
+git clone https://github.com/mooazsayyed/devops-assessment-nexgenesis.git
+cd devops-assessment-nexgenesis
+
+# Start development environment
+docker-compose -f docker-compose.dev.yml up --build -d
+
+# Access the application
+# Frontend: http://localhost:3002
+# Backend: http://localhost:8002
+```
+
+### Local Development with Source Code
+```bash
+# Backend setup
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 8000
+
+# Frontend setup (new terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+
 ## Deployed Applications
 
 ### Production Environment
