@@ -68,123 +68,75 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup SSH Key (On Runner)
+      - name: Setup SSH Key
         run: |
-          echo "Setting up SSH key on GitHub runner..."
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          
-          # Write the SSH private key with proper formatting
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2-key.pem
-          
-          # Remove any Windows line endings and ensure proper permissions
           sed -i 's/\r$//' ~/.ssh/ec2-key.pem 2>/dev/null || true
           chmod 600 ~/.ssh/ec2-key.pem
-          
-          # Verify key format
-          echo "Verifying SSH key format..."
-          if ssh-keygen -l -f ~/.ssh/ec2-key.pem; then
-            echo "SSH key format is valid"
-          else
-            echo "SSH key format validation failed"
-            echo "Key file size: $(wc -c < ~/.ssh/ec2-key.pem)"
-            echo "Key file first line: $(head -n1 ~/.ssh/ec2-key.pem)"
-            echo "Key file last line: $(tail -n1 ~/.ssh/ec2-key.pem)"
-            exit 1
-          fi
-          
-          # Add EC2 host to known hosts
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-          echo "SSH key setup completed"
 
-      - name: Test SSH Connection (Runner → EC2)
+      - name: Install Docker Compose on EC2
         run: |
-          echo "Testing SSH connection from runner to EC2..."
-          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful' && whoami && pwd"
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            docker compose version
+          "
 
-      - name: Prepare EC2 Environment (Runner → EC2)
+      - name: Clean Existing Deployment
         run: |
-          echo "Creating directory structure on EC2..."
           ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             mkdir -p /home/ubuntu/app
-            echo 'Directory created on EC2'
-          "
-
-      - name: Stop Existing Containers (Runner → EC2)
-        run: |
-          echo "Stopping existing containers on EC2..."
-          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             cd /home/ubuntu/app
             if [ -f docker-compose.preprod.yml ]; then
-              echo 'Found existing docker-compose file, stopping containers...'
-              docker-compose -f docker-compose.preprod.yml down || echo 'No containers to stop'
-            else
-              echo 'No existing docker-compose file found'
+              docker compose -f docker-compose.preprod.yml down
             fi
-            echo 'Cleaning up unused Docker resources...'
-            docker system prune -f || echo 'Docker cleanup completed'
+            docker rm devops-backend-preprod devops-frontend-preprod 2>/dev/null || true
           "
 
-      - name: Create Environment File (Runner → EC2)
+      - name: Create Environment File
         run: |
-          echo "Creating environment file on EC2..."
           ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             cat > /home/ubuntu/app/.env.preprod << 'EOF'
           DEBUG=${{ secrets.PREPROD_DEBUG }}
           ALLOWED_HOSTS=${{ secrets.PREPROD_ALLOWED_HOSTS }}
           CORS_ALLOWED_ORIGINS=${{ secrets.PREPROD_CORS_ALLOWED_ORIGINS }}
-          ENVIRONMENT=${{ secrets.PREPROD_ENVIRONMENT }}
           SECRET_KEY=${{ secrets.PREPROD_SECRET_KEY }}
           VITE_API_URL=${{ secrets.PREPROD_VITE_API_URL }}
           BACKEND_IMAGE=${BACKEND_IMAGE}
           FRONTEND_IMAGE=${FRONTEND_IMAGE}
           IMAGE_TAG=${IMAGE_TAG}
           EOF
-            echo 'Environment file created successfully'
           "
 
-      - name: Copy Docker Compose File (Runner → EC2)
+      - name: Copy Docker Compose File
         run: |
-          echo "Copying docker-compose file to EC2..."
           scp -i ~/.ssh/ec2-key.pem docker-compose.preprod.yml ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/app/
-          echo "Docker compose file copied successfully"
 
-      - name: Pull Latest Images (Runner → EC2)
+      - name: Pull Images
         run: |
-          echo "Pulling latest Docker images on EC2..."
           ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             cd /home/ubuntu/app
-            echo 'Pulling backend image: ${BACKEND_IMAGE}:${IMAGE_TAG}'
             docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
-            echo 'Pulling frontend image: ${FRONTEND_IMAGE}:${IMAGE_TAG}'
             docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
-            echo 'Images pulled successfully'
           "
 
-      - name: Deploy with Docker Compose (Runner → EC2)
+      - name: Deploy Containers
         run: |
-          echo "Starting containers with docker-compose on EC2..."
           ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             cd /home/ubuntu/app
-            echo 'Starting containers...'
-            docker-compose -f docker-compose.preprod.yml --env-file .env.preprod up -d
-            echo 'Containers started successfully'
+            docker compose -f docker-compose.preprod.yml --env-file .env.preprod up -d
           "
 
-      - name: Health Check (Runner → EC2)
+      - name: Verify Deployment
         run: |
-          echo "Performing health check..."
           sleep 30
           ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             cd /home/ubuntu/app
-            echo 'Container status:'
-            docker-compose -f docker-compose.preprod.yml ps
-            echo 'Deployment completed successfully!'
+            docker compose -f docker-compose.preprod.yml ps
+            docker ps | grep preprod
           "
 
-      - name: Cleanup SSH Key (On Runner)
+      - name: Cleanup
         if: always()
-        run: |
-          echo "Cleaning up SSH key..."
-          rm -f ~/.ssh/ec2-key.pem
-          echo "Cleanup completed"
+        run: rm -f ~/.ssh/ec2-key.pem
