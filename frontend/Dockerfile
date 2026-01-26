@@ -22,8 +22,11 @@ RUN addgroup -g 1001 -S appuser && \
 
 WORKDIR /app
 
-# Install only serve globally for serving static files
-RUN npm install -g serve && npm cache clean --force
+# Create a minimal package.json for serve installation
+RUN echo '{"name": "static-server", "version": "1.0.0", "dependencies": {"serve": "^14.2.1"}}' > package.json
+
+# Install serve with all its dependencies locally
+RUN npm install --production && npm cache clean --force
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /app/dist
@@ -37,5 +40,5 @@ EXPOSE 5173
 # Run as non-root user
 USER appuser
 
-# Start static file server
-CMD ["serve", "-s", "dist", "-l", "5173"]
+# Start static file server using local installation
+CMD ["npx", "serve", "-s", "dist", "-l", "5173"]
