@@ -43,9 +43,10 @@ jobs:
           docker push $BACKEND_IMAGE:production
           docker push $BACKEND_IMAGE:$IMAGE_TAG
 
-      - name: Build frontend image (force fresh build)
+      - name: Build frontend image
         run: |
           docker build --no-cache --pull \
+            --build-arg VITE_API_URL=${{ secrets.PROD_VITE_API_URL }} \
             -t $FRONTEND_IMAGE:production \
             -t $FRONTEND_IMAGE:$IMAGE_TAG ./frontend
 

@@ -2,6 +2,11 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Declare build argument
+ARG VITE_API_URL
+# Set as environment variable for Vite to use during build
+ENV VITE_API_URL=${VITE_API_URL}
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
