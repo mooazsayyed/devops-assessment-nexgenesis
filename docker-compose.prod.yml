@@ -1,24 +1,20 @@
 services:
   devops-backend-prod:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: runtime
+    image: ${BACKEND_IMAGE}:${IMAGE_TAG}
     container_name: devops-backend-prod
     ports:
       - "8004:8000"
     environment:
-      - DEBUG=False
-      - ALLOWED_HOSTS=api.nextgensis.mooazsayyed.live,localhost,127.0.0.1,3.231.187.192
-      - CORS_ALLOWED_ORIGINS=https://nextgensis.mooazsayyed.live,http://3.231.187.192
-      - ENVIRONMENT=production
-      - SECRET_KEY=django-production-secret-key-xyz123
+      - DEBUG=${PROD_DEBUG}
+      - ALLOWED_HOSTS=${PROD_ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${PROD_CORS_ALLOWED_ORIGINS}
+      - SECRET_KEY=${PROD_SECRET_KEY}
     volumes:
       - devops_backend_static_prod:/app/staticfiles
     networks:
       - devops-prod-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
       interval: 30s
       timeout: 30s
       retries: 3
