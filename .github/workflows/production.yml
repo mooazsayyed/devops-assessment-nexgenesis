@@ -69,11 +69,15 @@ jobs:
           set -e
           mkdir -p /home/ubuntu/app
           cd /home/ubuntu/app
-          docker compose -f docker-compose.prod.yml down || true
-          docker rm -f devops-backend-prod devops-frontend-prod || true
+
+          if [ -f docker-compose.prod.yml ]; then
+            docker compose -f docker-compose.prod.yml down || true
+          fi
+
+          docker rm -f devops-backend-prod devops-frontend-prod 2>/dev/null || true
           EOF
 
-      - name: Create .env.prod on EC2
+      - name: Create .env.prod
         run: |
           ssh -i ~/.ssh/ec2-key-prod.pem \
               ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} << EOF
