@@ -15,7 +15,8 @@ RUN apk add --no-cache \
 # Copy and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user --upgrade pip \
-    && pip install --no-cache-dir --user -r requirements.txt
+    && pip install --no-cache-dir --user -r requirements.txt \
+    && pip install --no-cache-dir --user gunicorn
 
 # Stage 2: Runtime
 FROM python:3.13-alpine AS runtime
@@ -46,7 +47,7 @@ COPY --chown=appuser:appuser . .
 RUN echo '#!/bin/bash' > /app/start.sh && \
     echo 'python manage.py migrate' >> /app/start.sh && \
     echo 'python manage.py collectstatic --noinput' >> /app/start.sh && \
-    echo 'python manage.py runserver 0.0.0.0:8000' >> /app/start.sh && \
+    echo 'gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 config.wsgi:application' >> /app/start.sh && \
     chmod +x /app/start.sh && \
     mkdir -p /app/staticfiles && \
     chown -R appuser:appuser /app

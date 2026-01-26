@@ -1,33 +1,52 @@
-# Multi-stage React/Vite Frontend Dockerfile
+# Multi-stage React/Vite Frontend Dockerfile - Production Optimized
 
 # Stage 1: Builder
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files and install ALL dependencies (including dev)
 COPY package*.json ./
 RUN npm ci && npm cache clean --force
 
-# Stage 2: Runtime
-FROM node:20-alpine AS runtime
+# Copy source code and build production assets
+COPY . .
+RUN npm run build
 
-WORKDIR /app
+# Stage 2: Production Runtime
+FROM nginx:alpine AS runtime
 
-# Install system dependencies
+# Install curl for health checks
 RUN apk add --no-cache curl
 
-# Create non-root user
-RUN adduser -D -h /home/appuser appuser
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy dependencies from builder stage
-COPY --from=builder --chown=appuser:appuser /app/node_modules ./node_modules
+# Create optimized nginx config for SPA
+RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
+    echo '    listen 5173;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    index index.html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '' >> /etc/nginx/conf.d/default.conf && \
+    echo '    # Enable gzip compression' >> /etc/nginx/conf.d/default.conf && \
+    echo '    gzip on;' >> /etc/nginx/conf.d/default.conf && \
+    echo '    gzip_types text/css application/javascript application/json;' >> /etc/nginx/conf.d/default.conf && \
+    echo '' >> /etc/nginx/conf.d/default.conf && \
+    echo '    # Handle SPA routing' >> /etc/nginx/conf.d/default.conf && \
+    echo '    location / {' >> /etc/nginx/conf.d/default.conf && \
+    echo '        try_files $uri $uri/ /index.html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        add_header Cache-Control "no-cache, no-store, must-revalidate";' >> /etc/nginx/conf.d/default.conf && \
+    echo '    }' >> /etc/nginx/conf.d/default.conf && \
+    echo '' >> /etc/nginx/conf.d/default.conf && \
+    echo '    # Cache static assets' >> /etc/nginx/conf.d/default.conf && \
+    echo '    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {' >> /etc/nginx/conf.d/default.conf && \
+    echo '        expires 1y;' >> /etc/nginx/conf.d/default.conf && \
+    echo '        add_header Cache-Control "public, immutable";' >> /etc/nginx/conf.d/default.conf && \
+    echo '    }' >> /etc/nginx/conf.d/default.conf && \
+    echo '}' >> /etc/nginx/conf.d/default.conf
 
-# Copy source code
-COPY --chown=appuser:appuser . .
-
-# Switch to non-root user
-USER appuser
+# Copy built assets from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Expose port
 EXPOSE 5173
@@ -36,5 +55,5 @@ EXPOSE 5173
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:5173 || exit 1
 
-# Start Vite dev server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
