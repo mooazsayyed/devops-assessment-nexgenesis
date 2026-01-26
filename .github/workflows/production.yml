@@ -64,18 +64,14 @@ jobs:
 
       - name: Stop existing containers
         run: |
-          ssh -i ~/.ssh/ec2-key-prod.pem \
-              ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} << 'EOF'
-          set -e
-          mkdir -p /home/ubuntu/app
-          cd /home/ubuntu/app
-
-          if [ -f docker-compose.prod.yml ]; then
-            docker compose -f docker-compose.prod.yml down || true
-          fi
-
-          docker rm -f devops-backend-prod devops-frontend-prod 2>/dev/null || true
-          EOF
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            mkdir -p /home/ubuntu/app
+            cd /home/ubuntu/app
+            if [ -f docker-compose.prod.yml ]; then
+              docker compose -f docker-compose.prod.yml down || true
+            fi
+            docker rm -f devops-backend-prod devops-frontend-prod 2>/dev/null || true
+          "
 
       - name: Create .env.prod
         run: |
@@ -99,15 +95,13 @@ jobs:
 
       - name: Pull images & deploy
         run: |
-          ssh -i ~/.ssh/ec2-key-prod.pem \
-              ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} << EOF
-          set -e
-          cd /home/ubuntu/app
-          docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
-          docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
-          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-          docker compose -f docker-compose.prod.yml ps
-          EOF
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            cd /home/ubuntu/app
+            docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
+            docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+            docker compose -f docker-compose.prod.yml ps
+          "
 
       - name: Cleanup SSH key
         if: always()
