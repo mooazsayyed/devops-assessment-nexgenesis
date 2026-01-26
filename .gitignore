@@ -41,3 +41,5 @@ terraform.tfstate.d/
 Terraform/terraform-ssh-key.pem
 
 .terraform.lock.hcl
+terraform*
+*.pem

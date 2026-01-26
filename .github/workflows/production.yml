@@ -1,0 +1,140 @@
+name: Production Build & Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Optional custom tag (leave empty to use commit SHA)"
+        required: false
+
+  push:
+    branches:
+      - production
+
+jobs:
+  build-and-push:
+    runs-on: [self-hosted, prod]
+
+    env:
+      BACKEND_IMAGE: mooaz/devops-backend
+      FRONTEND_IMAGE: mooaz/devops-frontend
+      IMAGE_TAG: prod-sha-${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      # -------- BACKEND --------
+      - name: Build backend image
+        run: |
+          docker build \
+            -t $BACKEND_IMAGE:production \
+            -t $BACKEND_IMAGE:${IMAGE_TAG} \
+            ./backend
+
+      - name: Push backend image
+        run: |
+          docker push $BACKEND_IMAGE:production
+          docker push $BACKEND_IMAGE:${IMAGE_TAG}
+
+      # -------- FRONTEND --------
+      - name: Build frontend image
+        run: |
+          docker build \
+            -t $FRONTEND_IMAGE:production \
+            -t $FRONTEND_IMAGE:${IMAGE_TAG} \
+            ./frontend
+
+      - name: Push frontend image
+        run: |
+          docker push $FRONTEND_IMAGE:production
+          docker push $FRONTEND_IMAGE:${IMAGE_TAG}
+
+  deploy:
+    needs: build-and-push
+    runs-on: [self-hosted, prod]
+
+    env:
+      BACKEND_IMAGE: mooaz/devops-backend
+      FRONTEND_IMAGE: mooaz/devops-frontend
+      IMAGE_TAG: prod-sha-${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY_PROD }}" > ~/.ssh/ec2-key-prod.pem
+          chmod 600 ~/.ssh/ec2-key-prod.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST_PROD }} >> ~/.ssh/known_hosts
+
+      - name: Check Docker Compose on Production EC2
+        run: |
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            docker compose version
+          "
+
+      - name: Clean Existing Production Deployment
+        run: |
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            mkdir -p /home/ubuntu/app
+            cd /home/ubuntu/app
+            if [ -f docker-compose.prod.yml ]; then
+              docker compose -f docker-compose.prod.yml down || true
+            fi
+            docker rm -f devops-backend-prod devops-frontend-prod 2>/dev/null || true
+          "
+
+      - name: Create Production Environment File
+        run: |
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            cat > /home/ubuntu/app/.env.prod << 'EOF'
+PROD_DEBUG=${{ secrets.PROD_DEBUG }}
+PROD_ALLOWED_HOSTS=${{ secrets.PROD_ALLOWED_HOSTS }}
+PROD_CORS_ALLOWED_ORIGINS=${{ secrets.PROD_CORS_ALLOWED_ORIGINS }}
+PROD_SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}
+PROD_VITE_API_URL=${{ secrets.PROD_VITE_API_URL }}
+BACKEND_IMAGE=${BACKEND_IMAGE}
+FRONTEND_IMAGE=${FRONTEND_IMAGE}
+IMAGE_TAG=${IMAGE_TAG}
+EOF
+          "
+
+      - name: Copy Docker Compose File
+        run: |
+          scp -i ~/.ssh/ec2-key-prod.pem docker-compose.prod.yml ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }}:/home/ubuntu/app/
+
+      - name: Pull Production Images
+        run: |
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            cd /home/ubuntu/app
+            docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
+            docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
+          "
+
+      - name: Deploy Production Containers
+        run: |
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            cd /home/ubuntu/app
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+          "
+
+      - name: Verify Production Deployment
+        run: |
+          sleep 30
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            cd /home/ubuntu/app
+            docker compose -f docker-compose.prod.yml ps
+            docker ps | grep prod
+          "
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/ec2-key-prod.pem
