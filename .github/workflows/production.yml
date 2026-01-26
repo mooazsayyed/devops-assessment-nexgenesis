@@ -25,18 +25,20 @@ jobs:
 
       - name: Build backend image
         run: |
-          docker build -t $BACKEND_IMAGE:production \
-                       -t $BACKEND_IMAGE:$IMAGE_TAG ./backend
+          docker build --no-cache \
+                 -t $BACKEND_IMAGE:production \
+                 -t $BACKEND_IMAGE:$IMAGE_TAG ./backend
 
       - name: Push backend image
         run: |
           docker push $BACKEND_IMAGE:production
           docker push $BACKEND_IMAGE:$IMAGE_TAG
 
-      - name: Build frontend image
+      - name: Build frontend image (no cache)
         run: |
-          docker build -t $FRONTEND_IMAGE:production \
-                       -t $FRONTEND_IMAGE:$IMAGE_TAG ./frontend
+          docker build --no-cache \
+            -t $FRONTEND_IMAGE:production \
+            -t $FRONTEND_IMAGE:$IMAGE_TAG ./frontend
 
       - name: Push frontend image
         run: |
