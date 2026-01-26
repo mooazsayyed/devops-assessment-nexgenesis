@@ -41,8 +41,9 @@ https://api.nextgensis.mooazsayyed.live/api/health
 ## TERRAFORM WAS USED TO CREATE EC2 INSTANCES AND SECURITY RULES, ALONG WITH A PRIVATE key and ELASTIC IP [TERRAFORM DIRECTORY](./Terraform)
 resroueces created via terraform
 
-PRE-PROD ec2 -  i-0937c46a11f153a92 (devops-assessment-preprod)
-elastic ip -  i-0937c46a11f153a92 (devops-assessment-preprod
-PEM FILE FOR SSH
+PRE-PROD ec2 -  i-0937c46a11f153a92 (devops-assessment-preprod) <br>
+elastic ip -  i-0937c46a11f153a92 (devops-assessment-preprod) <br>
+PEM FILE FOR SSH <br>
+and secuirty rules allowed ssh 22. port 80 for http and port 443 for  https  
 
 
