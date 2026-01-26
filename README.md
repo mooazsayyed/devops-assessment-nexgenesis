@@ -1,3 +1,9 @@
+## Assignment is completed documentation is seend here
+   # All setup and assisgnment details by Mooaz Sayyed
+- 📘 [DevOps Guide](DEVOPS.md)
+
+
+#pre existing detials here
 # DevOps Assessment Application
 
 A simple "Hello World" full-stack application built with **Django** (Backend) and **React with Vite** (Frontend).
