@@ -68,26 +68,48 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2
+      - name: Setup SSH Key (On Runner)
         run: |
-          # Create SSH key file
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > /tmp/ec2-key.pem
-          chmod 600 /tmp/ec2-key.pem
+          echo "Setting up SSH key on GitHub runner..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/ec2-key.pem
+          chmod 600 ~/.ssh/ec2-key.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          echo "SSH key setup completed"
 
-          # Create app directory on EC2
-          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p /home/ubuntu/app"
+      - name: Test SSH Connection (Runner → EC2)
+        run: |
+          echo "Testing SSH connection from runner to EC2..."
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful' && whoami && pwd"
 
-          # Stop existing containers if running
-          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
-            cd /home/ubuntu/app
-            if [ -f docker-compose.preprod.yml ]; then
-              docker-compose -f docker-compose.preprod.yml down || true
-            fi
-            docker system prune -f || true
+      - name: Prepare EC2 Environment (Runner → EC2)
+        run: |
+          echo "Creating directory structure on EC2..."
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            mkdir -p /home/ubuntu/app
+            echo 'Directory created on EC2'
           "
 
-          # Create environment file
-          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "cat > /home/ubuntu/app/.env.preprod << 'EOF'
+      - name: Stop Existing Containers (Runner → EC2)
+        run: |
+          echo "Stopping existing containers on EC2..."
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/app
+            if [ -f docker-compose.preprod.yml ]; then
+              echo 'Found existing docker-compose file, stopping containers...'
+              docker-compose -f docker-compose.preprod.yml down || echo 'No containers to stop'
+            else
+              echo 'No existing docker-compose file found'
+            fi
+            echo 'Cleaning up unused Docker resources...'
+            docker system prune -f || echo 'Docker cleanup completed'
+          "
+
+      - name: Create Environment File (Runner → EC2)
+        run: |
+          echo "Creating environment file on EC2..."
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cat > /home/ubuntu/app/.env.preprod << 'EOF'
           DEBUG=${{ secrets.PREPROD_DEBUG }}
           ALLOWED_HOSTS=${{ secrets.PREPROD_ALLOWED_HOSTS }}
           CORS_ALLOWED_ORIGINS=${{ secrets.PREPROD_CORS_ALLOWED_ORIGINS }}
@@ -97,26 +119,52 @@ jobs:
           BACKEND_IMAGE=${BACKEND_IMAGE}
           FRONTEND_IMAGE=${FRONTEND_IMAGE}
           IMAGE_TAG=${IMAGE_TAG}
-          EOF"
-
-          # Copy docker-compose file
-          scp -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no docker-compose.preprod.yml ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/app/
-
-          # Pull latest images and start containers
-          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
-            cd /home/ubuntu/app
-            docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
-            docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
-            docker-compose -f docker-compose.preprod.yml --env-file .env.preprod up -d
+          EOF
+            echo 'Environment file created successfully'
           "
 
-          # Health check
-          sleep 30
-          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+      - name: Copy Docker Compose File (Runner → EC2)
+        run: |
+          echo "Copying docker-compose file to EC2..."
+          scp -i ~/.ssh/ec2-key.pem docker-compose.preprod.yml ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/app/
+          echo "Docker compose file copied successfully"
+
+      - name: Pull Latest Images (Runner → EC2)
+        run: |
+          echo "Pulling latest Docker images on EC2..."
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             cd /home/ubuntu/app
+            echo 'Pulling backend image: ${BACKEND_IMAGE}:${IMAGE_TAG}'
+            docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
+            echo 'Pulling frontend image: ${FRONTEND_IMAGE}:${IMAGE_TAG}'
+            docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
+            echo 'Images pulled successfully'
+          "
+
+      - name: Deploy with Docker Compose (Runner → EC2)
+        run: |
+          echo "Starting containers with docker-compose on EC2..."
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/app
+            echo 'Starting containers...'
+            docker-compose -f docker-compose.preprod.yml --env-file .env.preprod up -d
+            echo 'Containers started successfully'
+          "
+
+      - name: Health Check (Runner → EC2)
+        run: |
+          echo "Performing health check..."
+          sleep 30
+          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/app
+            echo 'Container status:'
             docker-compose -f docker-compose.preprod.yml ps
             echo 'Deployment completed successfully!'
           "
 
-          # Cleanup
-          rm -f /tmp/ec2-key.pem
+      - name: Cleanup SSH Key (On Runner)
+        if: always()
+        run: |
+          echo "Cleaning up SSH key..."
+          rm -f ~/.ssh/ec2-key.pem
+          echo "Cleanup completed"
