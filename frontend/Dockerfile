@@ -1,7 +1,7 @@
 # Multi-stage React/Vite Frontend Dockerfile
 
 # Stage 1: Builder
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
 # Stage 2: Runtime
-FROM node:20-alpine as runtime
+FROM node:20-alpine AS runtime
 
 WORKDIR /app
 

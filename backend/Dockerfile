@@ -1,7 +1,7 @@
 # Multi-stage Django Backend Dockerfile
 
 # Stage 1: Builder
-FROM python:3.13-alpine as builder
+FROM python:3.13-alpine AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir --user --upgrade pip \
     && pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
-FROM python:3.13-alpine as runtime
+FROM python:3.13-alpine AS runtime
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -39,21 +39,22 @@ RUN adduser -D -h /home/appuser appuser
 # Copy installed packages from builder stage
 COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
+# Create staticfiles directory with proper permissions BEFORE copying files
+RUN mkdir -p /app/staticfiles && chown -R appuser:appuser /app
+
 # Copy project files
 COPY --chown=appuser:appuser . .
 
-# Create staticfiles directory with proper permissions
-RUN mkdir -p /app/staticfiles && chown -R appuser:appuser /app/staticfiles
+# Create startup script as root, then change ownership
+RUN echo '#!/bin/bash' > /app/start.sh && \
+    echo 'python manage.py migrate' >> /app/start.sh && \
+    echo 'python manage.py collectstatic --noinput' >> /app/start.sh && \
+    echo 'python manage.py runserver 0.0.0.0:8000' >> /app/start.sh && \
+    chmod +x /app/start.sh && \
+    chown appuser:appuser /app/start.sh
 
 # Switch to non-root user
 USER appuser
-
-# Create startup script
-RUN echo '#!/bin/bash\n\
-    python manage.py migrate\n\
-    python manage.py collectstatic --noinput\n\
-    python manage.py runserver 0.0.0.0:8000' > /app/start.sh && \
-    chmod +x /app/start.sh
 
 # Expose port
 EXPOSE 8000
