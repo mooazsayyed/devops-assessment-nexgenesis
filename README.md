@@ -16,19 +16,19 @@ https://nextgensis.mooazsayyed.live
 
 ## View PRODUCTION API here
 
-https://api.nextgensis.mooazsayyed.live/api/hello
+https://api.nextgensis.mooazsayyed.live/api/hello <br>
 {
 "message": "Hello World from Django Backend!"
 }
 <img width="609" height="201" alt="image" src="https://github.com/user-attachments/assets/d11b2fe2-b0a3-45e8-ae5d-c22307ffc0e9" />
 
-## VIEW PREPRODUCITON APPLICATION HERE
+## VIEW PREPRODUCITON APPLICATION HERE <br>
 
 ![alt text](image.png)
 
 ## VIEW PREPRODUCITON API HERE
 
-https://preprod.api.nextgensis.mooazsayyed.live/api/hello
+https://preprod.api.nextgensis.mooazsayyed.live/api/hello  <br>
 {
 "message": "Hello World from Django Backend!"
 }
@@ -40,7 +40,7 @@ https://preprod.api.nextgensis.mooazsayyed.live/api/hello
 
 # Added health endpoint to see api health
 
-https://api.nextgensis.mooazsayyed.live/api/health
+https://api.nextgensis.mooazsayyed.live/api/health <br>
 
 {
 "status": "healthy",
@@ -54,7 +54,7 @@ https://api.nextgensis.mooazsayyed.live/api/health
 ## Infrastructure as Code (Terraform)
 
 Terraform was used to provision EC2 instances, security groups, private keys, and Elastic IPs.
-[Terraform Directory](./Terraform)
+[Terraform Directory](./Terraform) <br>
 
 ### Resources Created
 

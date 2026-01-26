@@ -72,6 +72,26 @@ Each environment runs isolated containers with separate:
 
 ## Docker Configuration
 
+## Different Dockercompose files for each environment
+   - Development -  docker-compose-dev.yml<br> [Dev Docker Compose](./docker-compose.dev.yml)
+   - Staging - docker-compose-staging.yml <br> [Staging Docker Compose](./docker-compose.staging.yml)
+   - Pre production - docker-compose-preprod.yml <br> [Pre Production](./docker-compose.preprod.yml)
+   - Production - docker-compose-prod.yml <br> [Production](./docker-compose.prod.yml)
+
+## Different Port to avoid conflicts
+ 
+ Development - <br>
+ Backend - 8001, Frontend - 5174 <br>
+
+ Staging - <br>
+ Backend - 8002, Frontend - 5175 <br>
+
+ Pre Production - <br>
+ Backend - 8003, Frontend - 5176<br>
+
+ Production <br>
+ Backend - 8004, Frontend -5177<br>
+ 
 ### Backend Dockerfile (Multi-stage Build)
 **Location**: `backend/Dockerfile`
 
@@ -96,17 +116,18 @@ docker build -t devops-backend:{envrionment}+sha ./backend
 - Non-root user (nonroot from distroless)
 - Serve static files with serve package
 
-PRODUCTION SERVER DOCKER IMAGES
+## 3 PRODUCTION SERVER DOCKER IMAGES
 
-Image size specifications
+Image size specifications<br>
 backend image size - 157MB on disk  content size 32.6MB
 frontend image size - 188MB  on disk  content size     53.8MB
 
 <img width="1121" height="244" alt="image" src="https://github.com/user-attachments/assets/102c9905-afc3-4f0a-97c8-7d6339342619" />
 
-PREPROD SERVER DOCKER IMAGES
+PREPROD SERVER DOCKER IMAGES<br>
 
-Image size specifications
+Image size specifications<br>
+
 backend image size - 157MB  on disk    content size  32.6MB
 frontend image size - 264MB  on disk    content size  55.9MB
 
@@ -154,7 +175,7 @@ docker-compose -f docker-compose.staging.yml up -d
 ## Infrastructure as Code (Terraform)
 
 ### AWS Infrastructure Provisioning
-**Location**: `Terraform/`
+**Location**: `Terraform/` [Folder](./Terraform/)
 
 **Resources Managed**:
 - **EC2 Instances**: Production and Pre-prod application servers
@@ -165,8 +186,8 @@ docker-compose -f docker-compose.staging.yml up -d
 
 **Key Infrastructure**:
 - Production Server: i-04134e67e58a562ca (3.231.187.192)  
-- Pre-prod Server: i-0937c46a11f153a92 (54.87.192.112)
-- GitHub Runner: i-0a3ec543ba7c25239 (34.227.18.99)
+- Pre-prod Server: i-0937c46a11f153a92 (54.87.192.112) 'Craeted via console'
+- GitHub Runner: i-0a3ec543ba7c25239 (34.227.18.99) 'Created via console'
 
 **Terraform Commands**:
 ```bash
@@ -234,12 +255,6 @@ terraform apply"
 - Docker and Docker Compose installed
 - Node.js 20+ for frontend development  
 - Python 3.13+ for backend development
-
-### Clone Repository
-```bash
-git clone https://github.com/mooazsayyed/devops-assessment-nexgenesis.git
-cd devops-assessment-nexgenesis
-```
 
 
 ## Challenges and Solutions
