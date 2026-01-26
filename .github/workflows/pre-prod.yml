@@ -54,3 +54,69 @@ jobs:
         run: |
           docker push $FRONTEND_IMAGE:preprod
           docker push $FRONTEND_IMAGE:${IMAGE_TAG}
+
+  deploy:
+    needs: build-and-push
+    runs-on: [self-hosted, preprod]
+
+    env:
+      BACKEND_IMAGE: mooaz/devops-backend
+      FRONTEND_IMAGE: mooaz/devops-frontend
+      IMAGE_TAG: preprod-sha-${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        run: |
+          # Create SSH key file
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > /tmp/ec2-key.pem
+          chmod 600 /tmp/ec2-key.pem
+
+          # Create app directory on EC2
+          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p /home/ubuntu/app"
+
+          # Stop existing containers if running
+          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/app
+            if [ -f docker-compose.preprod.yml ]; then
+              docker-compose -f docker-compose.preprod.yml down || true
+            fi
+            docker system prune -f || true
+          "
+
+          # Create environment file
+          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "cat > /home/ubuntu/app/.env.preprod << 'EOF'
+          DEBUG=${{ secrets.PREPROD_DEBUG }}
+          ALLOWED_HOSTS=${{ secrets.PREPROD_ALLOWED_HOSTS }}
+          CORS_ALLOWED_ORIGINS=${{ secrets.PREPROD_CORS_ALLOWED_ORIGINS }}
+          ENVIRONMENT=${{ secrets.PREPROD_ENVIRONMENT }}
+          SECRET_KEY=${{ secrets.PREPROD_SECRET_KEY }}
+          VITE_API_URL=${{ secrets.PREPROD_VITE_API_URL }}
+          BACKEND_IMAGE=${BACKEND_IMAGE}
+          FRONTEND_IMAGE=${FRONTEND_IMAGE}
+          IMAGE_TAG=${IMAGE_TAG}
+          EOF"
+
+          # Copy docker-compose file
+          scp -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no docker-compose.preprod.yml ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/app/
+
+          # Pull latest images and start containers
+          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/app
+            docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
+            docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
+            docker-compose -f docker-compose.preprod.yml --env-file .env.preprod up -d
+          "
+
+          # Health check
+          sleep 30
+          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/ubuntu/app
+            docker-compose -f docker-compose.preprod.yml ps
+            echo 'Deployment completed successfully!'
+          "
+
+          # Cleanup
+          rm -f /tmp/ec2-key.pem
