@@ -68,8 +68,8 @@ jobs:
             mkdir -p /home/ubuntu/app
             cd /home/ubuntu/app
             # Stop and remove containers using compose
-            if [ -f docker-compose.prod.yml ]; then
-              docker compose -f docker-compose.prod.yml down --remove-orphans || true
+            if [ -f "docker compose.prod.yml" ]; then
+              docker compose -f "docker compose.prod.yml" down --remove-orphans || true
             fi
             # Force remove any remaining containers
             docker rm -f devops-backend-prod devops-frontend-prod 2>/dev/null || true
@@ -91,10 +91,10 @@ jobs:
             echo 'IMAGE_TAG=${IMAGE_TAG}' >> .env.prod
           "
 
-      - name: Copy docker-compose file
+      - name: Copy docker compose file
         run: |
           scp -i ~/.ssh/ec2-key-prod.pem \
-            docker-compose.prod.yml \
+            "docker-compose.prod.yml" \
             ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }}:/home/ubuntu/app/
 
       - name: Pull images & deploy
