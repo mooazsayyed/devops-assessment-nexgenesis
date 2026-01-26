@@ -23,9 +23,18 @@ jobs:
           echo "${{ secrets.DOCKER_PASSWORD }}" \
             | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
+      - name: Clean Docker builder cache and old images
+        run: |
+          # Clean builder cache
+          docker builder prune -af
+          # Remove old images to force fresh build
+          docker rmi $BACKEND_IMAGE:production 2>/dev/null || true
+          docker rmi $FRONTEND_IMAGE:production 2>/dev/null || true
+          docker image prune -af
+
       - name: Build backend image
         run: |
-          docker build --no-cache \
+          docker build --no-cache --pull \
                  -t $BACKEND_IMAGE:production \
                  -t $BACKEND_IMAGE:$IMAGE_TAG ./backend
 
@@ -34,9 +43,9 @@ jobs:
           docker push $BACKEND_IMAGE:production
           docker push $BACKEND_IMAGE:$IMAGE_TAG
 
-      - name: Build frontend image (no cache)
+      - name: Build frontend image (force fresh build)
         run: |
-          docker build --no-cache \
+          docker build --no-cache --pull \
             -t $FRONTEND_IMAGE:production \
             -t $FRONTEND_IMAGE:$IMAGE_TAG ./frontend
 
@@ -70,8 +79,8 @@ jobs:
             mkdir -p /home/ubuntu/app
             cd /home/ubuntu/app
             # Stop and remove containers using compose
-            if [ -f "docker compose.prod.yml" ]; then
-              docker compose -f "docker compose.prod.yml" down --remove-orphans || true
+            if [ -f docker-compose.prod.yml ]; then
+              docker compose -f docker-compose.prod.yml down --remove-orphans || true
             fi
             # Force remove any remaining containers
             docker rm -f devops-backend-prod devops-frontend-prod 2>/dev/null || true
@@ -98,27 +107,64 @@ jobs:
       - name: Copy docker compose file
         run: |
           scp -i ~/.ssh/ec2-key-prod.pem \
-            "docker-compose.prod.yml" \
+            docker-compose.prod.yml \
             ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }}:/home/ubuntu/app/
 
-      - name: Pull images & deploy
+      - name: Clean old images and pull fresh
         run: |
           ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
             cd /home/ubuntu/app
-            # Remove old images to ensure fresh pull
-            docker image rm ${BACKEND_IMAGE}:${IMAGE_TAG} 2>/dev/null || true
-            docker image rm ${FRONTEND_IMAGE}:${IMAGE_TAG} 2>/dev/null || true
+            echo 'Removing all devops images...'
+            # Remove ALL devops images (including old SHAs)
+            docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep 'devops-backend\|devops-frontend' | awk '{print \$2}' | xargs -r docker rmi -f 2>/dev/null || true
+            # Clean up everything
+            docker image prune -af
+            docker container prune -f
+            echo 'Pulling fresh images...'
             # Pull fresh images
             docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
             docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
-            # Start services
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+            echo 'Images pulled successfully'
+          "
+
+      - name: Deploy with force recreate
+        run: |
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            cd /home/ubuntu/app
+            # Start services with force recreate
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate
             # Wait for containers to start
-            sleep 10
+            echo 'Waiting for containers to start...'
+            sleep 15
+            # Show container status
             docker compose -f docker-compose.prod.yml ps
-            # Check container logs for any issues
-            docker logs devops-frontend-prod --tail 20 || true
-            docker logs devops-backend-prod --tail 20 || true
+            echo ''
+            echo '=== Backend Logs ==='
+            docker logs devops-backend-prod --tail 30 || true
+            echo ''
+            echo '=== Frontend Logs ==='
+            docker logs devops-frontend-prod --tail 30 || true
+          "
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
+            cd /home/ubuntu/app
+            echo 'Checking container health...'
+            if docker ps | grep -q 'devops-backend-prod.*Up'; then
+              echo '✅ Backend is running'
+            else
+              echo '❌ Backend is not running'
+              exit 1
+            fi
+            
+            if docker ps | grep -q 'devops-frontend-prod.*Up'; then
+              echo '✅ Frontend is running'
+            else
+              echo '❌ Frontend is not running'
+              docker logs devops-frontend-prod --tail 50
+              exit 1
+            fi
           "
 
       - name: Cleanup SSH key
