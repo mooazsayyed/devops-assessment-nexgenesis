@@ -4,7 +4,7 @@
 
 - 📘 [DevOps Guide](DEVOPS.md)
 
-CI/CD
+CI/CD setup
 
 <img width="1121" height="524" alt="image" src="https://github.com/user-attachments/assets/1a2a525f-d013-4dda-a787-af81bfeeecda" />
 
@@ -16,7 +16,10 @@ https://nextgensis.mooazsayyed.live
 
 ## View PRODUCTION API here
 
-https://api.nextgensis.mooazsayyed.live/api/hello <br>
+https://api.nextgensis.mooazsayyed.live/api/hello 
+
+<br>
+
 {
 "message": "Hello World from Django Backend!"
 }
@@ -28,7 +31,9 @@ https://api.nextgensis.mooazsayyed.live/api/hello <br>
 
 ## VIEW PREPRODUCITON API HERE
 
-https://preprod.api.nextgensis.mooazsayyed.live/api/hello  <br>
+https://preprod.api.nextgensis.mooazsayyed.live/api/hello  
+
+<br>
 {
 "message": "Hello World from Django Backend!"
 }
@@ -40,7 +45,9 @@ https://preprod.api.nextgensis.mooazsayyed.live/api/hello  <br>
 
 # Added health endpoint to see api health
 
-https://api.nextgensis.mooazsayyed.live/api/health <br>
+https://api.nextgensis.mooazsayyed.live/api/health 
+
+<br>
 
 {
 "status": "healthy",
