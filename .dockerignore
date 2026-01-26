@@ -6,18 +6,16 @@
 .gitattributes
 
 # Documentation
-README.md
-README*.md
+*.md
 docs/
 *.rst
 LICENSE
-CHANGELOG.md
+
 
 # CI/CD
 .github/
 .gitlab-ci.yml
-Jenkinsfile
-azure-pipelines.yml
+*.yml
 
 # Environment files
 .env*

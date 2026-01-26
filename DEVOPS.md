@@ -3,22 +3,22 @@
 ## Deployed Applications
 
 ### Production Environment
-- **Application URL**: http://3.231.187.192 
-- **Backend API**: http://3.231.187.192:8004
-- **Frontend**: http://3.231.187.192:3000
+- **Application URL**: https//nextgensis.mooazsayyed.live 
+- **Backend API**: https://api.nextgensis.mooazsayyed.live
+- **Frontend**: https://nextgensis.mooazsayyed.live
 
 ### Pre-Production Environment  
-- **Application URL**: http://54.87.192.112
-- **Backend API**: http://54.87.192.112:8003
-- **Frontend**: http://54.87.192.112:3001
+- **Application URL**: https://preprod.nextgensis.mooazsayyed.live
+- **Backend API**: https://preprod.api.nextgensis.mooazsayyed.live
+- **Frontend**: https://preprod.nextgensis.mooazsayyed.live
 
 ## Repository Information
 
-**Primary Repository**: https://github.com/mooazsayyed/devops-assessment-nexgenesis
+**Primary Forked Repository**: https://github.com/mooazsayyed/devops-assessment-nexgenesis
 **Original Source**: https://github.com/Nexgensis/devops-assessment
 
 ### Branch Structure
-- **main**: Base development branch
+<!-- - **main**: Base development branch -->
 - **production**: Production deployment branch
 - **pre-prod**: Pre-production deployment branch  
 - **staging**: Staging environment branch
