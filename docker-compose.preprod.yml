@@ -5,10 +5,10 @@ services:
     ports:
       - "8003:8000"
     environment:
-      - DEBUG=${DEBUG}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${PREPROD_DEBUG}
+      - ALLOWED_HOSTS=${PREPROD_ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${PREPROD_CORS_ALLOWED_ORIGINS}
+      - SECRET_KEY=${PREPROD_SECRET_KEY}
     volumes:
       - devops_backend_static_preprod:/app/staticfiles
     networks:
@@ -21,7 +21,7 @@ services:
     ports:
       - "5176:5173"
     environment:
-      - VITE_API_URL=${VITE_API_URL}
+      - VITE_API_URL=${PREPROD_VITE_API_URL}
     depends_on:
       - devops-backend-preprod
     networks:

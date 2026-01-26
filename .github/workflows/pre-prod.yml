@@ -26,8 +26,14 @@ jobs:
 
       - name: Login to Docker Hub
         run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | \
-          docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          set -e
+          for i in {1..3}; do
+            if echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin; then
+              break
+            fi
+            echo "Login attempt $i failed, retrying..."
+            sleep 5
+          done
 
       # -------- BACKEND --------
       - name: Build backend image
@@ -70,43 +76,108 @@ jobs:
 
       - name: Setup SSH Key
         run: |
+          set -e
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+
+          # Validate SSH key exists
+          if [ -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+            echo "Error: EC2_SSH_PRIVATE_KEY secret is not set"
+            exit 1
+          fi
+
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2-key.pem
           sed -i 's/\r$//' ~/.ssh/ec2-key.pem 2>/dev/null || true
           chmod 600 ~/.ssh/ec2-key.pem
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Install Docker Compose on EC2
+          # Validate key format
+          if ! ssh-keygen -l -f ~/.ssh/ec2-key.pem >/dev/null 2>&1; then
+            echo "Error: Invalid SSH key format"
+            exit 1
+          fi
+
+          # Add host to known_hosts with retry
+          for i in {1..3}; do
+            if ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null; then
+              break
+            fi
+            echo "SSH keyscan attempt $i failed, retrying..."
+            sleep 2
+          done
+
+      - name: Check Docker Compose on EC2
         run: |
-          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+          set -e
+          echo "Testing SSH connection and Docker Compose..."
+          ssh -i ~/.ssh/ec2-key.pem -o ConnectTimeout=30 -o StrictHostKeyChecking=yes ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            set -e
+            echo 'SSH connection successful'
+            if ! command -v docker >/dev/null 2>&1; then
+              echo 'Error: Docker is not installed'
+              exit 1
+            fi
+            if ! docker compose version >/dev/null 2>&1; then
+              echo 'Error: Docker Compose is not available'
+              exit 1
+            fi
             docker compose version
+            echo 'Docker and Docker Compose are working'
           "
 
       - name: Clean Existing Deployment
         run: |
-          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+          set -e
+          ssh -i ~/.ssh/ec2-key.pem -o ConnectTimeout=30 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            set -e
             mkdir -p /home/ubuntu/app
             cd /home/ubuntu/app
+            
+            echo 'Stopping existing preprod containers...'
             if [ -f docker-compose.preprod.yml ]; then
-              docker compose -f docker-compose.preprod.yml down
+              docker compose -f docker-compose.preprod.yml down --timeout 30 || echo 'No existing deployment found'
             fi
-            docker rm devops-backend-preprod devops-frontend-preprod 2>/dev/null || true
+            
+            # Remove any orphaned containers
+            docker rm -f devops-backend-preprod devops-frontend-preprod 2>/dev/null || echo 'No containers to remove'
+            
+            # Clean up any dangling images for preprod
+            docker image prune -f --filter 'label=preprod=true' 2>/dev/null || true
+            
+            echo 'Cleanup completed'
           "
 
       - name: Create Environment File
         run: |
-          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+          set -e
+          # Validate required secrets
+          if [ -z "${{ secrets.PREPROD_DEBUG }}" ] || [ -z "${{ secrets.PREPROD_SECRET_KEY }}" ]; then
+            echo "Error: Required secrets are missing"
+            exit 1
+          fi
+
+          ssh -i ~/.ssh/ec2-key.pem -o ConnectTimeout=30 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            set -e
+            echo 'Creating environment file...'
             cat > /home/ubuntu/app/.env.preprod << 'EOF'
-          DEBUG=${{ secrets.PREPROD_DEBUG }}
-          ALLOWED_HOSTS=${{ secrets.PREPROD_ALLOWED_HOSTS }}
-          CORS_ALLOWED_ORIGINS=${{ secrets.PREPROD_CORS_ALLOWED_ORIGINS }}
-          SECRET_KEY=${{ secrets.PREPROD_SECRET_KEY }}
-          VITE_API_URL=${{ secrets.PREPROD_VITE_API_URL }}
-          BACKEND_IMAGE=${BACKEND_IMAGE}
-          FRONTEND_IMAGE=${FRONTEND_IMAGE}
-          IMAGE_TAG=${IMAGE_TAG}
-          EOF
+              PREPROD_DEBUG=${{ secrets.PREPROD_DEBUG }}
+              PREPROD_ALLOWED_HOSTS=${{ secrets.PREPROD_ALLOWED_HOSTS }}
+              PREPROD_CORS_ALLOWED_ORIGINS=${{ secrets.PREPROD_CORS_ALLOWED_ORIGINS }}
+              PREPROD_SECRET_KEY=${{ secrets.PREPROD_SECRET_KEY }}
+              PREPROD_VITE_API_URL=${{ secrets.PREPROD_VITE_API_URL }}
+              BACKEND_IMAGE=${BACKEND_IMAGE}
+              FRONTEND_IMAGE=${FRONTEND_IMAGE}
+              IMAGE_TAG=${IMAGE_TAG}
+              EOF
+                          
+            # Validate environment file was created
+            if [ ! -f /home/ubuntu/app/.env.preprod ]; then
+              echo 'Error: Environment file was not created'
+              exit 1
+            fi
+            
+            echo 'Environment file created successfully'
+            echo 'Environment variables:'
+            grep -E '^[A-Z]' /home/ubuntu/app/.env.preprod | sed 's/=.*/=***/' || true
           "
 
       - name: Copy Docker Compose File
@@ -115,10 +186,35 @@ jobs:
 
       - name: Pull Images
         run: |
-          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+          set -e
+          ssh -i ~/.ssh/ec2-key.pem -o ConnectTimeout=30 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            set -e
             cd /home/ubuntu/app
-            docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}
-            docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}
+            
+            echo 'Pulling backend image with retries...'
+            for i in {1..3}; do
+              if docker pull ${BACKEND_IMAGE}:${IMAGE_TAG}; then
+                echo 'Backend image pulled successfully'
+                break
+              fi
+              echo \"Pull attempt \$i failed for backend, retrying...\"
+              sleep 10
+            done
+            
+            echo 'Pulling frontend image with retries...'
+            for i in {1..3}; do
+              if docker pull ${FRONTEND_IMAGE}:${IMAGE_TAG}; then
+                echo 'Frontend image pulled successfully'
+                break
+              fi
+              echo \"Pull attempt \$i failed for frontend, retrying...\"
+              sleep 10
+            done
+            
+            # Verify images exist
+            docker image inspect ${BACKEND_IMAGE}:${IMAGE_TAG} >/dev/null
+            docker image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} >/dev/null
+            echo 'All images verified'
           "
 
       - name: Deploy Containers
@@ -130,13 +226,53 @@ jobs:
 
       - name: Verify Deployment
         run: |
+          set -e
+          echo "Waiting for containers to start..."
           sleep 30
-          ssh -i ~/.ssh/ec2-key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+
+          ssh -i ~/.ssh/ec2-key.pem -o ConnectTimeout=30 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            set -e
             cd /home/ubuntu/app
+            
+            echo 'Checking container status...'
             docker compose -f docker-compose.preprod.yml ps
-            docker ps | grep preprod
+            
+            # Verify containers are running
+            if ! docker ps | grep -q 'devops-backend-preprod'; then
+              echo 'Error: Backend container is not running'
+              docker logs devops-backend-preprod --tail 50 || true
+              exit 1
+            fi
+            
+            if ! docker ps | grep -q 'devops-frontend-preprod'; then
+              echo 'Error: Frontend container is not running'
+              docker logs devops-frontend-preprod --tail 50 || true
+              exit 1
+            fi
+            
+            # Health check with retries
+            echo 'Performing health checks...'
+            for i in {1..10}; do
+              if curl -f -s http://localhost:8003/health/ >/dev/null 2>&1; then
+                echo 'Backend health check passed'
+                break
+              fi
+              echo \"Health check attempt \$i failed, retrying in 10s...\"
+              sleep 10
+            done
+            
+            # Final status check
+            echo 'Final container status:'
+            docker ps --filter 'name=preprod' --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+            
+            echo 'Deployment verification completed successfully'
           "
 
       - name: Cleanup
         if: always()
-        run: rm -f ~/.ssh/ec2-key.pem
+        run: |
+          echo "Cleaning up SSH key and temporary files..."
+          rm -f ~/.ssh/ec2-key.pem
+          # Remove any temporary files that might have been created
+          rm -f ~/.ssh/known_hosts.tmp || true
+          echo "Cleanup completed"
