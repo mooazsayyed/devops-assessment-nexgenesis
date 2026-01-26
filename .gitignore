@@ -9,6 +9,7 @@ env/
 db.sqlite3
 .env
 .env*
+
 # Node / React
 node_modules/
 dist/
@@ -33,13 +34,42 @@ Thumbs.db
 /envs/staging/backend.env
 /envs/preprod/backend.env
 
-# Terraform
+# Terraform - Comprehensive Security
 .terraform/
-*.tfstate
-*.tfstate.backup
-terraform.tfstate.d/
-Terraform/terraform-ssh-key.pem
-
 .terraform.lock.hcl
-terraform*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+terraform.tfstate.d/
+crash.log
+crash.*.log
+*.tfplan
+*.tfplan.*
+.terraformrc
+terraform.rc
+
+# Terraform SSH Keys and Certificates
 *.pem
+*.key
+*.crt
+*.p12
+*.pfx
+terraform-ssh-key*
+
+# Cloud Provider Credentials
+.aws/
+.azure/
+.gcp/
+credentials.json
+service-account*.json
+
+# Backup files
+*.bak
+*.backup
+*.orig
+*.tmp
+
+# Logs
+*.log
+logs/
