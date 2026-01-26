@@ -72,8 +72,28 @@ jobs:
         run: |
           echo "Setting up SSH key on GitHub runner..."
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/ec2-key.pem
+          chmod 700 ~/.ssh
+          
+          # Write the SSH private key with proper formatting
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2-key.pem
+          
+          # Remove any Windows line endings and ensure proper permissions
+          sed -i 's/\r$//' ~/.ssh/ec2-key.pem 2>/dev/null || true
           chmod 600 ~/.ssh/ec2-key.pem
+          
+          # Verify key format
+          echo "Verifying SSH key format..."
+          if ssh-keygen -l -f ~/.ssh/ec2-key.pem; then
+            echo "SSH key format is valid"
+          else
+            echo "SSH key format validation failed"
+            echo "Key file size: $(wc -c < ~/.ssh/ec2-key.pem)"
+            echo "Key file first line: $(head -n1 ~/.ssh/ec2-key.pem)"
+            echo "Key file last line: $(tail -n1 ~/.ssh/ec2-key.pem)"
+            exit 1
+          fi
+          
+          # Add EC2 host to known hosts
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
           echo "SSH key setup completed"
 
