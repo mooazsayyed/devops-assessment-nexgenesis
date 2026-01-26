@@ -151,20 +151,30 @@ jobs:
           ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
             cd /home/ubuntu/app
             echo 'Checking container health...'
-            if docker ps | grep -q 'devops-backend-prod.*Up'; then
+            
+            # Check backend
+            BACKEND_STATUS=\$(docker inspect -f '{{.State.Status}}' devops-backend-prod 2>/dev/null || echo 'not_found')
+            if [ \"\$BACKEND_STATUS\" = \"running\" ]; then
               echo '✅ Backend is running'
             else
-              echo '❌ Backend is not running'
+              echo '❌ Backend is not running (status: '\$BACKEND_STATUS')'
+              docker logs devops-backend-prod --tail 50 2>/dev/null || true
               exit 1
             fi
             
-            if docker ps | grep -q 'devops-frontend-prod.*Up'; then
+            # Check frontend
+            FRONTEND_STATUS=\$(docker inspect -f '{{.State.Status}}' devops-frontend-prod 2>/dev/null || echo 'not_found')
+            if [ \"\$FRONTEND_STATUS\" = \"running\" ]; then
               echo '✅ Frontend is running'
             else
-              echo '❌ Frontend is not running'
+              echo '❌ Frontend is not running (status: '\$FRONTEND_STATUS')'
               docker logs devops-frontend-prod --tail 50
               exit 1
             fi
+            
+            echo ''
+            echo '=== Deployment Successful ==='
+            docker ps --filter name=devops
           "
 
       - name: Cleanup SSH key
