@@ -39,19 +39,17 @@ RUN adduser -D -h /home/appuser appuser
 # Copy installed packages from builder stage
 COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
-# Create staticfiles directory with proper permissions BEFORE copying files
-RUN mkdir -p /app/staticfiles && chown -R appuser:appuser /app
-
-# Copy project files
+# Copy project files first
 COPY --chown=appuser:appuser . .
 
-# Create startup script as root, then change ownership
+# Create startup script and staticfiles directory with proper permissions
 RUN echo '#!/bin/bash' > /app/start.sh && \
     echo 'python manage.py migrate' >> /app/start.sh && \
     echo 'python manage.py collectstatic --noinput' >> /app/start.sh && \
     echo 'python manage.py runserver 0.0.0.0:8000' >> /app/start.sh && \
     chmod +x /app/start.sh && \
-    chown appuser:appuser /app/start.sh
+    mkdir -p /app/staticfiles && \
+    chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
