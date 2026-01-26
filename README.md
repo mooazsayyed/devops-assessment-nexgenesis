@@ -1,5 +1,5 @@
-## Assignment is completed documentation is sent here
-   # AS asked setup and assignment details in DEVOPS.md by Mooaz Sayyed
+## Assignment is completed, documentation is sent here
+   # AS asked setup and assignment details in DEVOPS.md by Mooaz Sayyed prev readme.md is pruned
 - 📘 [DevOps Guide](DEVOPS.md)
 
 CI/CD
@@ -20,7 +20,7 @@ https://api.nextgensis.mooazsayyed.live/api/hello
 }
 <img width="609" height="201" alt="image" src="https://github.com/user-attachments/assets/d11b2fe2-b0a3-45e8-ae5d-c22307ffc0e9" />
 
-# EC2 and application SETUP 
+# EC2 and application SETUP FOR PRE-PROD AND PROD BOTH ATTACHED TO ELASTIC IP
 <img width="3292" height="1676" alt="image" src="https://github.com/user-attachments/assets/7c2f3372-781f-4fc7-916d-46cc2a81450e" />
 
 
@@ -39,11 +39,15 @@ https://api.nextgensis.mooazsayyed.live/api/health
 
 
 ## TERRAFORM WAS USED TO CREATE EC2 INSTANCES AND SECURITY RULES, ALONG WITH A PRIVATE key and ELASTIC IP [TERRAFORM DIRECTORY](./Terraform)
-resroueces created via terraform
+resources created via Terraform
 
 PRE-PROD ec2 -  i-0937c46a11f153a92 (devops-assessment-preprod) <br>
 elastic ip -  i-0937c46a11f153a92 (devops-assessment-preprod) <br>
 PEM FILE FOR SSH <br>
-and secuirty rules allowed ssh 22. port 80 for http and port 443 for  https  
+And security rules allowed SSH 22. port 80 for http and port 443 for https  
+
+SELF HSOTED RUNNER ON EC2 <br>
+<img width="1043" height="318" alt="image" src="https://github.com/user-attachments/assets/14f34770-10e8-4168-9459-0b6df1bfb5aa" />
 
 
+<h3> TAGS "preprod" <br> production <br> </h3>
