@@ -1,40 +1,24 @@
-# Multi-stage React/Vite Frontend Dockerfile
-
-# Stage 1: Builder
-FROM node:20-alpine AS builder
-
+# -------- build stage --------
+FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package*.json ./
-RUN npm ci && npm cache clean --force
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Stage 2: Runtime
-FROM node:20-alpine AS runtime
+COPY . .
+RUN npm run build
 
+# -------- runtime stage --------
+FROM node:20-alpine
 WORKDIR /app
 
-# Install system dependencies
-RUN apk add --no-cache curl
+# Install serve and its dependencies in a node_modules directory
+RUN npm install serve
 
-# Create non-root user
-RUN adduser -D -h /home/appuser appuser
+# Copy built assets
+COPY --from=build /app/dist ./dist
 
-# Copy dependencies from builder stage
-COPY --from=builder --chown=appuser:appuser /app/node_modules ./node_modules
-
-# Copy source code
-COPY --chown=appuser:appuser . .
-
-# Switch to non-root user
-USER appuser
-
-# Expose port
 EXPOSE 5173
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5173 || exit 1
-
-# Start Vite dev server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Use npx to run serve from local node_modules
+CMD ["npx", "serve", "-s", "dist", "-l", "5173"]
