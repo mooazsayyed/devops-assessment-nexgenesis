@@ -81,17 +81,19 @@ jobs:
 
       - name: Create .env.prod
         run: |
-          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} "
-            cd /home/ubuntu/app
-            echo 'PROD_DEBUG=${{ secrets.PROD_DEBUG }}' > .env.prod
-            echo 'PROD_ALLOWED_HOSTS=${{ secrets.PROD_ALLOWED_HOSTS }}' >> .env.prod
-            echo 'PROD_CORS_ALLOWED_ORIGINS=${{ secrets.PROD_CORS_ALLOWED_ORIGINS }}' >> .env.prod
-            echo 'PROD_SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}' >> .env.prod
-            echo 'PROD_VITE_API_URL=${{ secrets.PROD_VITE_API_URL }}' >> .env.prod
-            echo 'BACKEND_IMAGE=${BACKEND_IMAGE}' >> .env.prod
-            echo 'FRONTEND_IMAGE=${FRONTEND_IMAGE}' >> .env.prod
-            echo 'IMAGE_TAG=${IMAGE_TAG}' >> .env.prod
-          "
+          ssh -i ~/.ssh/ec2-key-prod.pem ${{ secrets.EC2_USER_PROD }}@${{ secrets.EC2_HOST_PROD }} << EOF
+          cd /home/ubuntu/app
+          cat > .env.prod << EOT
+          PROD_DEBUG=${{ secrets.PROD_DEBUG }}
+          PROD_ALLOWED_HOSTS=${{ secrets.PROD_ALLOWED_HOSTS }}
+          PROD_CORS_ALLOWED_ORIGINS=${{ secrets.PROD_CORS_ALLOWED_ORIGINS }}
+          PROD_SECRET_KEY=${{ secrets.PROD_SECRET_KEY }}
+          PROD_VITE_API_URL=${{ secrets.PROD_VITE_API_URL }}
+          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
+          FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}
+          IMAGE_TAG=${{ env.IMAGE_TAG }}
+          EOT
+          EOF
 
       - name: Copy docker compose file
         run: |
