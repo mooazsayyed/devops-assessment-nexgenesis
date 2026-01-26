@@ -120,6 +120,28 @@ terraform apply -var-file="production.tfvars"
 
 ## CI/CD Pipeline (GitHub Actions)
 
+### Development Workflow
+**File**: `.github/workflows/development.yml`
+**URL**: https://github.com/mooazsayyed/devops-assessment-nexgenesis/blob/development/.github/workflows/development.yml
+
+**Pipeline Stages**:
+- **Lint and Validate**: Python linting (flake8, black, isort), Frontend linting (ESLint), TypeScript checking
+- **Security Scanning**: Bandit security checks, dependency vulnerability scanning
+- **Testing**: Backend tests with coverage, frontend build verification
+- **Docker Build**: Multi-stage container builds and health checks
+- **Image Security**: Trivy container security scanning
+
+### Staging Workflow  
+**File**: `.github/workflows/staging.yml`
+**URL**: https://github.com/mooazsayyed/devops-assessment-nexgenesis/blob/staging/.github/workflows/staging.yml
+
+**Pipeline Stages**:
+- **Quality Gate**: Comprehensive code quality and formatting checks
+- **Security Scan**: Advanced security analysis and dependency auditing
+- **Build and Test**: Container builds with health verification
+- **Integration Test**: Full Docker Compose integration testing
+- **Registry Push**: Tagged image deployment to Docker Hub
+
 ### Production Workflow
 **File**: `.github/workflows/production.yml`
 **URL**: https://github.com/mooazsayyed/devops-assessment-nexgenesis/blob/production/.github/workflows/production.yml
@@ -135,15 +157,34 @@ terraform apply -var-file="production.tfvars"
 **File**: `.github/workflows/pre-prod.yml`
 **URL**: https://github.com/mooazsayyed/devops-assessment-nexgenesis/blob/pre-prod/.github/workflows/pre-prod.yml
 
+### Code Quality and Security Tools
+
+**Python Backend**:
+- **flake8**: Code linting and style enforcement
+- **black**: Automated code formatting
+- **isort**: Import statement organization
+- **bandit**: Security vulnerability detection
+- **safety**: Dependency security scanning
+- **pytest**: Unit testing framework
+- **coverage**: Test coverage reporting
+
+**React Frontend**:
+- **ESLint**: JavaScript/TypeScript linting
+- **TypeScript**: Static type checking
+- **npm audit**: Dependency vulnerability scanning
+
 ### Workflow Triggers
-- Push to respective branches (production, pre-prod)
+- Push to respective branches (development, staging, production, pre-prod)
+- Pull request creation and updates
 - Manual workflow dispatch
-- Environment-specific deployments
+- Environment-specific automated deployments
 
 ### Docker Registry
 **Images pushed to Docker Hub**:
 - Backend: `mooaz/devops-backend:prod-sha-{commit}`
 - Frontend: `mooaz/devops-frontend:prod-sha-{commit}`
+- Staging: `mooaz/devops-backend:staging-{commit}`
+- Development: Tagged for testing only
 
 ## Local Development Setup
 
@@ -172,6 +213,36 @@ docker-compose -f docker-compose.dev.yml up --build
 ### Access Local Application
 - Frontend: http://localhost:3002
 - Backend: http://localhost:8002
+
+### Local Quality Checks
+Run comprehensive linting and testing before committing:
+
+**Windows:**
+```bash
+.\scripts\quality-check.bat
+```
+
+**Linux/Mac:**
+```bash
+./scripts/quality-check.sh
+```
+
+**Individual Checks:**
+```bash
+# Backend linting
+cd backend
+flake8 .
+black --check .
+isort --check-only .
+bandit -r .
+python manage.py test
+
+# Frontend linting  
+cd frontend
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
 ## Challenges and Solutions
 
