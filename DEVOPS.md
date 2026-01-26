@@ -43,17 +43,17 @@ npm run dev
 
 ### Production Environment
 - **Application URL**: https//nextgensis.mooazsayyed.live 
-- **Backend API**: https://api.nextgensis.mooazsayyed.live
+- **Backend API**: https://api.nextgensis.mooazsayyed.live/api/hello
 - **Frontend**: https://nextgensis.mooazsayyed.live
 
 ### Pre-Production Environment  
 - **Application URL**: https://preprod.nextgensis.mooazsayyed.live
-- **Backend API**: https://preprod.api.nextgensis.mooazsayyed.live
+- **Backend API**: https://preprod.api.nextgensis.mooazsayyed.live/api/hello
 - **Frontend**: https://preprod.nextgensis.mooazsayyed.live
 
 ## Repository Information
 
-**Primary Forked Repository**: https://github.com/mooazsayyed/devops-assessment-nexgenesis
+**Forked Repository with Mycode**: https://github.com/mooazsayyed/devops-assessment-nexgenesis
 **Original Source**: https://github.com/Nexgensis/devops-assessment
 
 ### Branch Structure
@@ -76,14 +76,15 @@ Each environment runs isolated containers with separate:
 **Location**: `backend/Dockerfile`
 
 **Key Features**:
-- Multi-stage build for optimized image size
+- Multi-stage build 
 - Non-root user implementation (appuser)
 - Alpine Linux base for minimal footprint
 - Gunicorn WSGI server for production
+- Distroless image gcr.io/distroless/nodejs20-debian12 for frontend
 
 **Build Command**:
 ```bash
-docker build -t devops-backend ./backend
+docker build -t devops-backend:{envrionment}+sha ./backend
 ```
 
 ### Frontend Dockerfile (Multi-stage Build)
@@ -95,9 +96,26 @@ docker build -t devops-backend ./backend
 - Non-root user (nonroot from distroless)
 - Serve static files with serve package
 
+PRODUCTION SERVER DOCKER IMAGES
+
+Image size specifications
+backend image size - 157MB on disk  content size 32.6MB
+frontend image size - 188MB  on disk  content size     53.8MB
+
+<img width="1121" height="244" alt="image" src="https://github.com/user-attachments/assets/102c9905-afc3-4f0a-97c8-7d6339342619" />
+
+PREPROD SERVER DOCKER IMAGES
+
+Image size specifications
+backend image size - 157MB  on disk    content size  32.6MB
+frontend image size - 264MB  on disk    content size  55.9MB
+
+<img width="1239" height="205" alt="image" src="https://github.com/user-attachments/assets/8b4e0663-a91c-48cc-8cd7-1f6c483370c8" />
+
+
 **Build Command**:
 ```bash
-docker build -t devops-frontend ./frontend
+docker build -t devops-frontend:{environment}+sha ./frontend
 ```
 
 ### Docker Compose Configurations
@@ -153,11 +171,11 @@ docker-compose -f docker-compose.staging.yml up -d
 **Terraform Commands**:
 ```bash
 terraform init
-terraform plan -var-file="production.tfvars"  
-terraform apply -var-file="production.tfvars"
+terraform plan"  
+terraform apply"
 ```
 
-## CI/CD Pipeline (GitHub Actions)
+## CI/CD Pipeline
 
 ### Development Workflow
 **File**: `.github/workflows/development.yml`
@@ -196,25 +214,10 @@ terraform apply -var-file="production.tfvars"
 **File**: `.github/workflows/pre-prod.yml`
 **URL**: https://github.com/mooazsayyed/devops-assessment-nexgenesis/blob/pre-prod/.github/workflows/pre-prod.yml
 
-### Code Quality and Security Tools
-
-**Python Backend**:
-- **flake8**: Code linting and style enforcement
-- **black**: Automated code formatting
-- **isort**: Import statement organization
-- **bandit**: Security vulnerability detection
-- **safety**: Dependency security scanning
-- **pytest**: Unit testing framework
-- **coverage**: Test coverage reporting
-
-**React Frontend**:
-- **ESLint**: JavaScript/TypeScript linting
-- **TypeScript**: Static type checking
-- **npm audit**: Dependency vulnerability scanning
 
 ### Workflow Triggers
 - Push to respective branches (development, staging, production, pre-prod)
-- Pull request creation and updates
+- Pull request creation and updates on for prod and preprod
 - Manual workflow dispatch
 - Environment-specific automated deployments
 
@@ -223,7 +226,7 @@ terraform apply -var-file="production.tfvars"
 - Backend: `mooaz/devops-backend:prod-sha-{commit}`
 - Frontend: `mooaz/devops-frontend:prod-sha-{commit}`
 - Staging: `mooaz/devops-backend:staging-{commit}`
-- Development: Tagged for testing only
+- Development: Should be Tagged for testing only
 
 ## Local Development Setup
 
@@ -238,57 +241,13 @@ git clone https://github.com/mooazsayyed/devops-assessment-nexgenesis.git
 cd devops-assessment-nexgenesis
 ```
 
-### Environment Variables Setup
-Create environment files in `envs/` directory:
-- `envs/development/backend.env`
-- `envs/staging/backend.env`  
-- `envs/preprod/backend.env`
-
-### Run Development Environment
-```bash
-docker-compose -f docker-compose.dev.yml up --build
-```
-
-### Access Local Application
-- Frontend: http://localhost:3002
-- Backend: http://localhost:8002
-
-### Local Quality Checks
-Run comprehensive linting and testing before committing:
-
-**Windows:**
-```bash
-.\scripts\quality-check.bat
-```
-
-**Linux/Mac:**
-```bash
-./scripts/quality-check.sh
-```
-
-**Individual Checks:**
-```bash
-# Backend linting
-cd backend
-flake8 .
-black --check .
-isort --check-only .
-bandit -r .
-python manage.py test
-
-# Frontend linting  
-cd frontend
-npm run lint
-npx tsc --noEmit
-npm run build
-```
 
 ## Challenges and Solutions
 
 ### Challenge: Version Management and Environment Isolation
 
 **Problem**: 
-During the deployment process, we encountered version conflicts where newer application versions were getting cached, and separate environment isolation was disrupting the deployment rhythm. The main issues were:
+During the deployment process, we encountered version conflicts in which newer application versions were being cached, and separate environment isolation disrupted the deployment rhythm. The main issues were:
 
 1. Docker image versions were not properly tagged with commit-specific identifiers
 2. Environment-specific containers were interfering with each other
@@ -310,7 +269,7 @@ We implemented a comprehensive version management strategy:
 
 4. **Deployment Orchestration**: Implemented proper container restart sequences in GitHub Actions to ensure clean deployments
 
-This approach resolved the versioning conflicts and established clear environment boundaries, enabling consistent and predictable deployments across all environments.
+This approach resolved versioning conflicts and established clear environment boundaries, enabling consistent, predictable deployments across all environments.
 
 ## Security Implementation
 
@@ -391,7 +350,7 @@ This approach resolved the versioning conflicts and established clear environmen
 ## Deployment Evidence
 
 **Repository**: https://github.com/mooazsayyed/devops-assessment-nexgenesis
-**Production URL**: http://3.231.187.192
-**Pre-prod URL**: http://54.87.192.112
+**Production URL**: https://nextgensis.mooazsayyed.live
+**Pre-prod URL**: https://api.nextgensis.mooazsayyed.live
 
-All requirements have been successfully implemented with additional enhancements for production-ready deployment including multi-environment support, comprehensive security measures, and automated infrastructure management.
+All requirements have been successfully implemented with additional enhancements for production-ready deployment, including multi-environment support, comprehensive security measures, and automated infrastructure management.
