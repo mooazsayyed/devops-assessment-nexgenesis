@@ -3,7 +3,7 @@
 - 📘 [DevOps Guide](DEVOPS.md)
 
 
-#pre existing detials here
+# Pre existing details from here
 # DevOps Assessment Application
 
 A simple "Hello World" full-stack application built with **Django** (Backend) and **React with Vite** (Frontend).
