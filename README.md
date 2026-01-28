@@ -1,4 +1,11 @@
-## Assignment is completed, documentation is sent here
+## Assignment is completed, documentation here
+
+[x] Dockerized frontend-backend
+[x] Deployed on Cloud (EC2)
+[x] Created cloud resources using Terraform to deploy on AWS
+[x] Used Docker best practices and multistage builds along with no root user to run images.
+[x] Logic for securely copying environment variables  with committing to GitHub
+[x] Complied with all resource management practices. 
 
 # AS asked setup and assignment details in DEVOPS.md by Mooaz Sayyed prev readme.md is pruned
 
